@@ -40,3 +40,8 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### CUSTOM ###
+/src/main/resources/com/project/server/*.json
+/src/main/resources/com/project/server/emails/*
+/src/main/resources/com/project/server/logs/*
