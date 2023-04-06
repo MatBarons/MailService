@@ -6,12 +6,10 @@ import com.project.models.EmailRequestModel;
 import com.project.models.EmailSerializable;
 import com.project.models.ResponseModel;
 import javafx.application.Platform;
-import javafx.beans.property.ListProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleListProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.control.Alert;
 import javafx.scene.paint.Color;
 
 import java.io.IOException;
@@ -31,6 +29,7 @@ public class ConnectionController {
     private static ListProperty<EmailSerializable> emailsInbox = new SimpleListProperty<>();
     private static ObservableList<EmailSerializable> emailsInboxContent = FXCollections.observableArrayList();
     private static ObjectProperty<Color> serverStatus = new SimpleObjectProperty<>(Color.LAWNGREEN);
+    private static BooleanProperty actionsDisabled = new SimpleBooleanProperty(true);
     private static Socket socket;
     private static ObjectOutputStream outStream;
     private static ObjectInputStream inStream;
@@ -60,7 +59,11 @@ public class ConnectionController {
                 Platform.runLater(() ->
                 {
                     try {
-                        ConnectionController.fillInbox();
+                        if (ConnectionController.fillInbox()) {
+                            Platform.runLater(() -> {
+                                new Alert(Alert.AlertType.INFORMATION, "You received a new email!\nCheck it up!").showAndWait();
+                            });
+                        }
                     } catch (Exception e) {
                         System.out.println("[startServiceThread] Server is down: " + e.getMessage());
                         changeServerStatus(false);
@@ -71,6 +74,8 @@ public class ConnectionController {
                     ConnectionController.startConnection();
                     System.out.println("Server is up thanks to startConnection call");
                     changeServerStatus(true);
+
+                    ClientGUIController.setSelectedEmail(null);
                 } catch (Exception e) {
                     System.out.println("[startServiceThread] Server is still down: " + e.getMessage());
                 }
@@ -96,7 +101,7 @@ public class ConnectionController {
             socket = new Socket(InetAddress.getLocalHost().getHostAddress(), CONNECTION_PORT);
             outStream = new ObjectOutputStream(socket.getOutputStream());
 
-            socket.setSoTimeout(2000);
+            socket.setSoTimeout(1000);
             inStream = new ObjectInputStream(socket.getInputStream());
 
             ConnectionRequestModel conn = new ConnectionRequestModel(user.getAddress(), user.getPassword(), ConnectionRequestModel.Status.CONNECT); // Creo l'oggetto da inviare per richiedere la connessione al server
@@ -109,7 +114,9 @@ public class ConnectionController {
                 throw new Exception(res.getMessage());
 
             emailsInboxContent.clear();
-            emailsInboxContent.addAll((ArrayList<EmailSerializable>) res.getData());
+            emailsInboxContent.addAll(((ArrayList<EmailSerializable>) res.getData()));
+            emailsInboxContent.sort(EmailSerializable::compareTo);
+            setActionsDisabled(true);
         } catch (IOException e) {
             System.out.println("[startConnection] Connection Error: " + e.getMessage());
             throw new Exception("Connection Error");
@@ -131,7 +138,7 @@ public class ConnectionController {
             socket = new Socket(InetAddress.getLocalHost().getHostAddress(), CONNECTION_PORT);
             outStream = new ObjectOutputStream(socket.getOutputStream());
 
-            socket.setSoTimeout(2000);
+            socket.setSoTimeout(1000);
             inStream = new ObjectInputStream(socket.getInputStream());
 
             ConnectionRequestModel conn = new ConnectionRequestModel(UserController.getUser().getAddress(), UserController.getUser().getPassword(), ConnectionRequestModel.Status.DISCONNECT); // Creo l'oggetto da inviare per richiedere la disconnessione al server
@@ -156,7 +163,7 @@ public class ConnectionController {
         }
     }
 
-    public static void fillInbox() throws Exception {
+    public static boolean fillInbox() throws Exception {
         if (!isServerOn) throw new Exception("Server is down");
 
         UserModel user = UserController.getUser();
@@ -176,7 +183,14 @@ public class ConnectionController {
 
             if (!res.isSuccessful()) throw new Exception(res.getMessage());
 
-            emailsInboxContent.addAll((ArrayList<EmailSerializable>) res.getData());
+            ArrayList<EmailSerializable> emails = (ArrayList<EmailSerializable>) res.getData();
+            if (emails.size() > 0) {
+                emailsInboxContent.addAll(0, emails);
+                emailsInboxContent.sort(EmailSerializable::compareTo);
+                return true;
+            }
+
+            return false;
         } catch (IOException e) {
             System.out.println("[fillInbox] Connection Error: " + e.getMessage());
             throw new Exception("Connection Error");
@@ -199,7 +213,7 @@ public class ConnectionController {
             socket = new Socket(InetAddress.getLocalHost().getHostAddress(), CONNECTION_PORT);
             outStream = new ObjectOutputStream(socket.getOutputStream());
 
-            socket.setSoTimeout(2000);
+            socket.setSoTimeout(1000);
             inStream = new ObjectInputStream(socket.getInputStream());
 
             EmailRequestModel conn = new EmailRequestModel(user.getAddress(), EmailRequestModel.RequestType.DELETE_FROM_INBOX, email); // Creo l'oggetto da inviare per richiedere la connessione al server
@@ -235,7 +249,7 @@ public class ConnectionController {
             socket = new Socket(InetAddress.getLocalHost().getHostAddress(), CONNECTION_PORT);
             outStream = new ObjectOutputStream(socket.getOutputStream());
 
-            socket.setSoTimeout(2000);
+            socket.setSoTimeout(1000);
             inStream = new ObjectInputStream(socket.getInputStream());
 
             EmailRequestModel conn = new EmailRequestModel(user.getAddress(), EmailRequestModel.RequestType.SEND, email); // Creo l'oggetto da inviare per richiedere la connessione al server
@@ -261,4 +275,15 @@ public class ConnectionController {
         }
     }
 
+    public static boolean isActionsDisabled() {
+        return actionsDisabled.get();
+    }
+
+    public static BooleanProperty actionsDisabledProperty() {
+        return actionsDisabled;
+    }
+
+    public static void setActionsDisabled(boolean actionsDisabled) {
+        ConnectionController.actionsDisabled.set(actionsDisabled);
+    }
 }
