@@ -1,11 +1,9 @@
 package com.project.client.controller;
 
 import com.project.client.ClientGUI;
-import com.project.client.model.UserModel;
-import com.project.models.EmailSerializable;
+import com.project.client.model.User;
+import com.project.models.Email;
 import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -22,9 +20,8 @@ import java.util.Optional;
 
 public class ClientGUIController {
 
-    //TODO: delete can be removed
     public enum Actions {
-        NEW_EMAIL, REPLY, REPLY_ALL, FORWARD, DELETE
+        NEW_EMAIL, REPLY, REPLY_ALL, FORWARD
     }
 
     @FXML
@@ -38,7 +35,7 @@ public class ClientGUIController {
     @FXML
     public Button btnNewEmail;
     @FXML
-    public ListView<EmailSerializable> listViewEmails;
+    public ListView<Email> listViewEmails;
     @FXML
     public Label sender;
     @FXML
@@ -55,19 +52,13 @@ public class ClientGUIController {
     public Circle statusServer;
 
     private static Actions action;
-    private static EmailSerializable selectedEmail;
-    private static ObjectProperty<EmailSerializable> selectedEmailProperty = new SimpleObjectProperty<>();
-
+    private static Email selectedEmail;
 
     public void initialize() {
-        System.out.println("ClientGUIController initialized");
-
-        selectedEmailProperty.set(selectedEmail);
-
         /**
          * PROPERTY BINDING
          */
-        listViewEmails.setItems(ConnectionController.emailsInboxProperty());
+        listViewEmails.setItems(UserController.emailsInboxProperty());
         statusServer.fillProperty().bind(ConnectionController.serverStatusProperty());
 
         /**
@@ -82,7 +73,7 @@ public class ClientGUIController {
         /**
          * Set the user data label to the user's first and last name
          */
-        UserModel user = UserController.getUser();
+        User user = UserController.getUser();
         String firstName = user.getAddress().split("\\.")[0];
         String lastName = user.getAddress().split("\\.")[1];
         firstName = firstName.substring(0, 1).toUpperCase() + firstName.substring(1);
@@ -96,10 +87,10 @@ public class ClientGUIController {
          */
         listViewEmails.setCellFactory(new Callback<>() {
             @Override
-            public ListCell<EmailSerializable> call(ListView<EmailSerializable> param) {
+            public ListCell<Email> call(ListView<Email> param) {
                 return new ListCell<>() {
                     @Override
-                    protected void updateItem(EmailSerializable item, boolean empty) {
+                    protected void updateItem(Email item, boolean empty) {
                         super.updateItem(item, empty);
                         if (item != null) {
                             Platform.runLater(() -> setText(item.getSubject()));
@@ -111,11 +102,14 @@ public class ClientGUIController {
             }
         });
 
+        /**
+         * This is a listener that, when a mail is selected from the list view on the left side, display the data on the right side
+         */
         listViewEmails.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             try {
                 ConnectionController.setActionsDisabled(false);
 
-                if(newValue == null) {
+                if (newValue == null) {
                     Platform.runLater(() -> {
                         sender.setText("");
                         recipients.setText("");
@@ -148,6 +142,10 @@ public class ClientGUIController {
         ConnectionController.startExecutorService();
     }
 
+    /**
+     * This method is called when the user clicks on an action button to open a new window
+     * Actions are: new email, reply, reply all, forward
+     */
     private static void launchEmailWindow() throws IOException {
         Parent newEmailParent = FXMLLoader.load(Objects.requireNonNull(ClientGUI.class.getResource("NewEmailGUI.fxml")));
         Stage newEmailStage = new Stage();
@@ -162,11 +160,9 @@ public class ClientGUIController {
 
     @FXML
     public void newEmail() {
-        System.out.println("btnNewEmail clicked");
         try {
             action = Actions.NEW_EMAIL;
             launchEmailWindow();
-
         } catch (Exception e) {
             System.out.println(e.getMessage());
             e.printStackTrace();
@@ -176,7 +172,6 @@ public class ClientGUIController {
 
     @FXML
     public void reply() {
-        System.out.println("btnReply clicked");
         try {
             action = Actions.REPLY;
             launchEmailWindow();
@@ -189,7 +184,6 @@ public class ClientGUIController {
 
     @FXML
     public void replyAll() {
-        System.out.println("btnReplyAll clicked");
         try {
             action = Actions.REPLY_ALL;
             launchEmailWindow();
@@ -202,7 +196,6 @@ public class ClientGUIController {
 
     @FXML
     public void forward() {
-        System.out.println("btnForward clicked");
         try {
             action = Actions.FORWARD;
             launchEmailWindow();
@@ -215,7 +208,6 @@ public class ClientGUIController {
 
     @FXML
     public void delete() {
-        System.out.println("btnDelete clicked");
         try {
             Optional<ButtonType> response = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to delete this email?", ButtonType.YES, ButtonType.NO).showAndWait();
             if (response.isPresent() && response.get() == ButtonType.YES) {
@@ -243,11 +235,11 @@ public class ClientGUIController {
         return action;
     }
 
-    public static EmailSerializable getSelectedEmail() {
+    public static Email getSelectedEmail() {
         return selectedEmail;
     }
 
-    public static void setSelectedEmail(EmailSerializable email) {
+    public static void setSelectedEmail(Email email) {
         selectedEmail = email;
     }
 }

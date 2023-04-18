@@ -1,7 +1,6 @@
 package com.project.server.controller;
 
 import com.project.server.Database;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
@@ -9,8 +8,6 @@ import javafx.scene.text.Text;
 import org.controlsfx.control.ToggleSwitch;
 
 import java.io.File;
-import java.io.FileReader;
-import java.util.Scanner;
 
 public class ServerGUIController {
     @FXML
@@ -25,26 +22,27 @@ public class ServerGUIController {
     private ConnectionController connectionController = null;
 
     public void initialize() {
-        connectionController = new ConnectionController(new Database());
+        connectionController = new ConnectionController();
 
         File emailFile = new File(LogController.getLogsPath() + "/");
         File[] files = emailFile.listFiles();
 
-        assert files != null;
-        for (File file : files)
-            logsListView.getItems().add(file.getName());
+        if (files != null) {
+            for (File file : files)
+                logsListView.getItems().add(file.getName());
 
-        logsTextArea.textProperty().bind(LogController.currentMessagesLogProperty());
+            logsTextArea.textProperty().bind(LogController.currentMessagesLogProperty());
 
-        logsListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            try {
-                System.out.println("Selected item: " + newValue);
-                String selected = logsListView.getSelectionModel().getSelectedItem();
-                LogController.read(selected);
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-            }
-        });
+            logsListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+                try {
+                    System.out.println("Selected item: " + newValue);
+                    String selected = logsListView.getSelectionModel().getSelectedItem();
+                    LogController.read(selected);
+                } catch (Exception e) {
+                    System.out.println(e.getMessage());
+                }
+            });
+        }
     }
 
     /**
@@ -85,7 +83,7 @@ public class ServerGUIController {
         }
     }
 
-    public void stopServer(){
+    public void stopServer() {
         connectionController.stopServer();
     }
 }

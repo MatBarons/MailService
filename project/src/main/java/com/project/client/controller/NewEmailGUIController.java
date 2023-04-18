@@ -1,6 +1,6 @@
 package com.project.client.controller;
 
-import com.project.models.EmailSerializable;
+import com.project.models.Email;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -37,27 +37,28 @@ public class NewEmailGUIController {
 
     @FXML
     public void initialize() {
-        System.out.println("NewEmailGUIController initialized");
         lblFrom.setText(UserController.getUser().getAddress());
 
-        System.out.println("Action: " + ClientGUIController.getAction());
         switch (ClientGUIController.getAction()) {
             case REPLY:
                 toField.setEditable(false);
-                subjectField.setEditable(true);
+                subjectField.setEditable(false);
                 msgHtml.setDisable(false);
+
+                subjectField.setText("Re: " + ClientGUIController.getSelectedEmail().getSubject());
                 toField.setText(ClientGUIController.getSelectedEmail().getSender());
                 break;
 
             case REPLY_ALL:
                 toField.setEditable(false);
-                subjectField.setEditable(true);
+                subjectField.setEditable(false);
                 msgHtml.setDisable(false);
 
                 ArrayList<String> recipients = new ArrayList<>(ClientGUIController.getSelectedEmail().getRecipients());
                 recipients.removeIf(s -> s.equals(UserController.getUser().getAddress()));
                 recipients.add(ClientGUIController.getSelectedEmail().getSender());
 
+                subjectField.setText("Re: " + ClientGUIController.getSelectedEmail().getSubject());
                 toField.setText(recipients.toString().replace("[", "").replace("]", ""));
                 break;
 
@@ -82,6 +83,13 @@ public class NewEmailGUIController {
         }
     }
 
+    /**
+     * Checks if all addresses are valid in terms of string structure
+     * Regex: there must be a @ and an extension, like .com or .it
+     *
+     * @param addresses list of addresses to check
+     * @return an arrayList with invalid addresses if some are invalid, otherwise an empty list
+     */
     private ArrayList<String> checkEmail(String[] addresses) {
         // Regex to check email address
         Pattern pattern = Pattern.compile("(?:[a-z0-9!#$%&'*+/=?^_`{|}~\\-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~\\-]+)*|\\\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\\\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])");
@@ -96,6 +104,13 @@ public class NewEmailGUIController {
         return invalidAddresses;
     }
 
+    /**
+     * Checks if address is valid in terms of string structure
+     * Regex: there must be a @ and an extension, like .com or .it
+     *
+     * @param address address to check
+     * @return the address if it is invalid, empty string otherwise
+     */
     private String checkEmail(String address) {
         // Regex to check email address
         Pattern pattern = Pattern.compile("(?:[a-z0-9!#$%&'*+/=?^_`{|}~\\-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~\\-]+)*|\\\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\\\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])");
@@ -108,6 +123,15 @@ public class NewEmailGUIController {
         return invalidAddresses;
     }
 
+    /**
+     * Checks if there is a recipient in the to field and if the recipients' addresses are correctly divided by a comma
+     * This method calls checkEmail method and returns an alert with all the wrong recipients' addresses
+     *
+     * @param to The string that it is going to be checked
+     * @return true if the string is valid, false otherwise
+     * @see #checkEmail(String[])
+     * @see #checkEmail(String)
+     */
     private boolean isValidToField(String to) {
         if (to.equals("")) {
             new Alert(Alert.AlertType.ERROR, "Missing 'TO' address").showAndWait();
@@ -142,13 +166,11 @@ public class NewEmailGUIController {
 
         if (subjectField.getText().equals("")) {
             new Alert(Alert.AlertType.ERROR, "Missing 'SUBJECT'").showAndWait();
-            System.out.println("Missing 'SUBJECT'");
             return;
         }
 
         if (msgHtml.getHtmlText().equals("<html dir=\"ltr\"><head></head><body contenteditable=\"true\"></body></html>")) {
             new Alert(Alert.AlertType.ERROR, "Missing 'MESSAGE'").showAndWait();
-            System.out.println("Missing 'MESSAGE'");
             return;
         }
 
@@ -160,24 +182,27 @@ public class NewEmailGUIController {
             }
 
             addresses = new ArrayList<>(new HashSet<>(addresses));
-
-
         } else {
             addresses.add(toField.getText());
         }
-
-        System.out.println("Send email");
         try {
-            ConnectionController.sendEmail(new EmailSerializable(lblFrom.getText(), addresses, subjectField.getText(), msgHtml.getHtmlText().replace("contenteditable=\"true\"", "contenteditable=\"false\""),
+            ConnectionController.sendEmail(new Email(lblFrom.getText(), addresses, subjectField.getText(), msgHtml.getHtmlText().replace("contenteditable=\"true\"", "contenteditable=\"false\""),
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))));
+
+            new Alert(Alert.AlertType.INFORMATION, "Email sent successfully").showAndWait();
 
             // Close window
             Stage stage = (Stage) btnSend.getScene().getWindow();
             stage.close();
-
-            new Alert(Alert.AlertType.INFORMATION, "Email sent successfully").showAndWait();
         } catch (Exception e) {
-            new Alert(Alert.AlertType.ERROR, e.getMessage()).showAndWait();
+            if (e.getMessage().contains("The email has been saved")) {
+                new Alert(Alert.AlertType.WARNING, e.getMessage()).showAndWait();
+                // Close window
+                Stage stage = (Stage) btnSend.getScene().getWindow();
+                stage.close();
+            } else {
+                new Alert(Alert.AlertType.ERROR, e.getMessage()).showAndWait();
+            }
         }
     }
 }
